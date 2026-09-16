@@ -4,28 +4,26 @@ Plataforma interactiva para el análisis, corrección de sesgo estadístico y do
 
 ---
 
+## 🚀 Despliegue Inmediato en Streamlit Cloud
+
+👉 **[Haz clic aquí para Desplegar la Aplicación en Streamlit Community Cloud](https://share.streamlit.io/deploy?repository=Xboster-eliel/HIDROMETEOROLOGIA&branch=main&mainModule=app.py)**
+
+Los parámetros de despliegue preconfigurados son:
+- **Repository:** `Xboster-eliel/HIDROMETEOROLOGIA`
+- **Branch:** `main`
+- **Main file path:** `app.py`
+
+Cada vez que se ejecute `git push origin main`, Streamlit Cloud actualizará automáticamente el dashboard en producción.
+
+---
+
 ## 📊 Datos y Metodología
 
 - **Modelo Climático:** `MPI-ESM1-2-HR` (Simulación diaria 1950–2100).
 - **Observación de Referencia:** Estación pluviométrica `Carolina (27010500)` (1959–2014).
 - **Periodo de Calibración Histórico:** 1959–2014 (consistente con el cierre del experimento histórico de CMIP6).
 - **Método:** Empirical Quantile Mapping mensual (12 funciones de distribución empírica acumulada ECDF) con determinación del umbral de llovizna del modelo $U_{\text{mod}}$ a partir de la probabilidad de días secos observados $P(\text{seco})_{\text{obs}}$.
-- **Tratamiento de Extrapolación:** Detección y marcado explícito de eventos que superan el soporte empírico de calibración.
-
----
-
-## 🚀 Despliegue en Streamlit Community Cloud
-
-Para desplegar este dashboard en la nube de Streamlit de forma gratuita y con actualización automática en cada `git push`:
-
-1. Ingresa a [share.streamlit.io](https://share.streamlit.io/) e inicia sesión con tu cuenta de GitHub (`Xboster-eliel`).
-2. Haz clic en **"New app"** (o **"Create app"**).
-3. Selecciona los siguientes parámetros:
-   - **Repository:** `Xboster-eliel/HIDROMETEOROLOGIA`
-   - **Branch:** `main`
-   - **Main file path:** `app.py`
-4. Haz clic en **"Deploy!"**.
-5. ¡Listo! Cada vez que realices `git push origin main`, Streamlit Cloud actualizará automáticamente el dashboard en producción.
+- **Tratamiento de Extrapolación:** Detección y marcado explícito de eventos que superan el soporte empírico de calibración (33 eventos en la serie futura).
 
 ---
 
@@ -52,16 +50,25 @@ La aplicación se abrirá en tu navegador en `http://localhost:8501`.
 ## 📁 Estructura del Repositorio
 
 ```text
-├── app.py                   # Aplicación principal interactiva en Streamlit
-├── qm_core.py               # Motor científico de cálculo y algoritmos de QM
-├── data QM.csv              # Base de datos de precipitación (Modelo + Estación)
-├── Quantil Mapping.ods      # Versión en formato OpenDocument Spreadsheet
-├── test_qm_pipeline.py      # Pruebas automatizadas del pipeline numérico
-├── ejecutar_dashboard.bat   # Script lanzador rápido para Windows
-├── requirements.txt         # Dependencias para Streamlit Cloud y local
-├── .gitignore               # Archivos excluidos del control de versiones
-└── README.md                # Documentación del proyecto
+├── app.py                     # Aplicación principal interactiva en Streamlit + Plotly
+├── qm_core.py                 # Motor científico desacoplado con algoritmos de QM
+├── test_qm_pipeline.py        # Pruebas automatizadas del pipeline numérico
+├── data QM.csv                # Base de datos de precipitación (Modelo + Estación)
+├── Quantil Mapping.ods        # Versión en formato OpenDocument Spreadsheet
+├── requirements.txt           # Dependencias para Streamlit Cloud y local
+├── .gitignore                 # Archivos excluidos del control de versiones
+├── ejecutar_dashboard.bat     # Lanzador local rápido para Windows
+├── hacer_git_push.bat         # Script automatizado para commits y envíos a GitHub
+├── DOCUMENTACION_PROYECTO.md  # Manual técnico completo y guía para futuras extensiones
+└── README.md                  # Presentación general del proyecto
 ```
+
+---
+
+## 📖 Documentación Completa y Futuras Extensiones
+
+Para consultar la formulación matemática detallada, la arquitectura de software, el ciclo CI/CD y las guías para **agregar nuevas estaciones, ensambles de modelos climáticos o migrar a Quantile Delta Mapping (QDM)**, consulta:
+👉 **[DOCUMENTACION_PROYECTO.md](DOCUMENTACION_PROYECTO.md)**
 
 ---
 
