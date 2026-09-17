@@ -37,8 +37,16 @@ row_obs = metricas_df.loc[metricas_df["Serie"] == "Observado (Estación)"].iloc[
 row_raw = metricas_df.loc[metricas_df["Serie"] == "Modelo Bruto (GCM)"].iloc[0]
 row_qm  = metricas_df.loc[metricas_df["Serie"] == "Modelo Corregido QM"].iloc[0]
 
-n_fuera = int(modelo_todo["fuera_soporte"].sum())
+cal_ini = int(metadata["cal_inicio"])
+cal_fin = int(metadata["cal_fin"])
+fuera_mask = modelo_todo["fuera_soporte"]
+n_fuera = int(fuera_mask.sum())
 pct_fuera = (n_fuera / len(modelo_todo)) * 100.0
+
+n_pre = int((fuera_mask & (modelo_todo["fecha"].dt.year < cal_ini)).sum())
+n_cal = int((fuera_mask & modelo_todo["fecha"].dt.year.between(cal_ini, cal_fin)).sum())
+n_post = int((fuera_mask & (modelo_todo["fecha"].dt.year > cal_fin)).sum())
+subtexto_extrap = f"{n_post} posteriores a {cal_fin} · {n_pre} anteriores a {cal_ini} · {n_cal} durante calibración"
 
 render_scientific_kpis(
     bias_raw=float(row_raw["Sesgo relativo Media (%)"]),
@@ -48,10 +56,20 @@ render_scientific_kpis(
     wet_raw=float(row_raw["Frecuencia húmeda (%)"]),
     wet_qm=float(row_qm["Frecuencia húmeda (%)"]),
     extrap_count=n_fuera,
-    extrap_pct=pct_fuera
+    extrap_pct=pct_fuera,
+    extrap_subtexto=subtexto_extrap
 )
 
-st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+banner_cal = (
+    '<div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px 14px; margin: 12px 0 16px 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #334155;">'
+    f'<span>🎯 <strong>Periodo de Calibración Activo:</strong> {cal_ini}–{cal_fin} ({len(cal):,} días evaluados · 12 modelos mensuales EQM)</span>'
+    '<span style="color: #64748B; font-size: 0.80rem;">⚙️ Modificable en tiempo real desde la barra lateral</span>'
+    '</div>'
+)
+if hasattr(st, "html"):
+    st.html(banner_cal)
+else:
+    st.markdown(banner_cal, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # 3. Bloque Gráfico Dual: Serie Comparativa y Sesgo Mensual
@@ -59,23 +77,38 @@ st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
 col_g1, col_g2 = st.columns([1.1, 0.9])
 
 with col_g1:
-    st.markdown("##### 🌧️ Precipitación Diaria en el Periodo de Calibración")
-    
-    # Selector de ventana temporal para no saturar la vista
+    st.markdown("##### 🌧️ Precipitación Diaria y Métricas de Error Embebidas")
+    st.caption("Serie temporal calibrada con tarjeta técnica de error integrada dentro del lienzo de Plotly:")
+
     anios_cal = sorted(cal["fecha"].dt.year.unique())
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
-        y_ini = st.selectbox("Desde año:", anios_cal, index=0, key="res_y_ini")
-    with col_s2:
-        y_fin_def_idx = len(anios_cal) - 1 if len(anios_cal) < 10 else 9  # Muestra primeros 10 años por defecto
-        y_fin = st.selectbox("Hasta año:", anios_cal, index=y_fin_def_idx, key="res_y_fin")
-    
+    modo_zoom = st.radio(
+        "Ventana de inspección diaria:",
+        options=["Todo el periodo", "Primeros 5 años", "Primeros 10 años", "Rango personalizado"],
+        index=2 if len(anios_cal) >= 10 else 0,
+        horizontal=True,
+        key="res_modo_zoom"
+    )
+
+    if modo_zoom == "Todo el periodo":
+        y_ini, y_fin = anios_cal[0], anios_cal[-1]
+    elif modo_zoom == "Primeros 5 años":
+        y_ini, y_fin = anios_cal[0], min(anios_cal[0] + 4, anios_cal[-1])
+    elif modo_zoom == "Primeros 10 años":
+        y_ini, y_fin = anios_cal[0], min(anios_cal[0] + 9, anios_cal[-1])
+    else:
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            y_ini = st.selectbox("Año inicial:", anios_cal, index=0, key="res_y_ini_custom")
+        with col_s2:
+            y_fin_def_idx = len(anios_cal) - 1 if len(anios_cal) < 10 else 9
+            y_fin = st.selectbox("Año final:", anios_cal, index=y_fin_def_idx, key="res_y_fin_custom")
+
     if y_ini > y_fin:
         st.error("El año inicial no puede ser mayor que el año final.")
         fig_main = plot_comparativa_principal(cal)
     else:
-        fig_main = plot_comparativa_principal(cal, anio_inicio=y_ini, anio_fin=y_fin)
-    
+        fig_main = plot_comparativa_principal(cal, anio_inicio=y_ini, anio_fin=y_fin, mostrar_metricas=True)
+
     st.plotly_chart(fig_main, use_container_width=True)
 
 with col_g2:
@@ -92,12 +125,17 @@ st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 st.markdown("##### 🎯 Evaluación y Semáforo de Desempeño Hidrometeorológico")
 render_extreme_diagnostics_table(metricas_df)
 
-# Diagnóstico de síntesis
+# Diagnóstico de síntesis 100% dinámico
+b_raw = float(row_raw["Sesgo relativo Media (%)"])
+b_qm = float(row_qm["Sesgo relativo Media (%)"])
+f_seca_obs = float(row_obs["Frecuencia seca (%)"])
+f_seca_qm = float(row_qm["Frecuencia seca (%)"])
+
 with st.expander("📌 Síntesis diagnóstica de la corrección"):
     st.markdown(
-        """
-        - **Media y Volumen Total:** El sesgo medio global se redujo de **-10.93% a +0.00%**, logrando una correspondencia volumétrica prácticamente exacta con la estación pluviométrica.
-        - **Frecuencia Seco/Húmedo:** Se eliminó el exceso de llovizna (*drizzle effect*) del modelo mediante umbrales dinámicos mensuales, igualando la frecuencia observada de días secos.
-        - **Colas y Extremos:** Los percentiles P95 y P99 se corrigieron eficientemente dentro del soporte histórico. Se detectaron 33 eventos futuros que superan el máximo histórico del modelo; en esos casos se aplica saturación empírica en el cuantil 1.0.
+        f"""
+        - **Media y Volumen Total:** El sesgo medio global en el periodo calibrado ({cal_ini}–{cal_fin}) se redujo de **{b_raw:+.2f}% a {b_qm:+.2f}%**, logrando una correspondencia volumétrica prácticamente exacta con la estación pluviométrica.
+        - **Frecuencia Seco/Húmedo:** Se eliminó el exceso de llovizna (*drizzle effect*) del modelo mediante umbrales dinámicos mensuales, igualando la frecuencia observada de días secos ({f_seca_obs:.1f}% obs vs {f_seca_qm:.1f}% QM).
+        - **Colas y Extremos:** Los percentiles P95 y P99 se corrigieron eficientemente dentro del soporte histórico. Se detectaron **{n_fuera} eventos** fuera del soporte histórico del modelo ({n_post} posteriores a {cal_fin}); en esos casos se aplica saturación empírica en el cuantil 1.0.
         """
     )

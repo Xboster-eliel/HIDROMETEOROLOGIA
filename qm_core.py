@@ -274,7 +274,10 @@ def tabla_metricas_comparativas(
             "Sesgo relativo Media (%)": 0.0,
             "RMSE (mm/d)": 0.0,
             "MAE (mm/d)": 0.0,
-            "KGE": 1.0
+            "KGE": 1.0,
+            "r": 1.0,
+            "alpha": 1.0,
+            "beta": 1.0,
         },
         {
             "Serie": "Modelo Bruto (GCM)",
@@ -283,7 +286,10 @@ def tabla_metricas_comparativas(
             "Sesgo relativo Media (%)": bias_media_raw,
             "RMSE (mm/d)": rmse_raw,
             "MAE (mm/d)": mae_raw,
-            "KGE": kge_raw
+            "KGE": kge_raw,
+            "r": r_raw,
+            "alpha": ratio_std_raw,
+            "beta": beta_raw,
         },
         {
             "Serie": "Modelo Corregido QM",
@@ -292,10 +298,79 @@ def tabla_metricas_comparativas(
             "Sesgo relativo Media (%)": bias_media_qm,
             "RMSE (mm/d)": rmse_qm,
             "MAE (mm/d)": mae_qm,
-            "KGE": kge_qm
+            "KGE": kge_qm,
+            "r": r_qm,
+            "alpha": ratio_std_qm,
+            "beta": beta_qm,
         }
     ])
     return df
+
+
+def calcular_metricas_error(
+    obs: np.ndarray,
+    mod_raw: np.ndarray,
+    mod_qm: np.ndarray,
+    wet_threshold: float = 0.1
+) -> Dict[str, float]:
+    """
+    Calcula de forma instantánea el resumen de errores y eficiencias
+    entre las observaciones y las series de modelo (bruto y QM).
+    """
+    obs = np.asarray(obs, dtype=float)
+    raw = np.asarray(mod_raw, dtype=float)
+    qm = np.asarray(mod_qm, dtype=float)
+
+    mu_obs = float(np.mean(obs))
+    mu_raw = float(np.mean(raw))
+    mu_qm = float(np.mean(qm))
+
+    std_obs = float(np.std(obs))
+    std_raw = float(np.std(raw))
+    std_qm = float(np.std(qm))
+
+    rmse_raw = float(np.sqrt(np.mean((raw - obs)**2)))
+    rmse_qm = float(np.sqrt(np.mean((qm - obs)**2)))
+
+    mae_raw = float(np.mean(np.abs(raw - obs)))
+    mae_qm = float(np.mean(np.abs(qm - obs)))
+
+    bias_raw_pct = ((mu_raw - mu_obs) / (mu_obs + 1e-9)) * 100.0
+    bias_qm_pct = ((mu_qm - mu_obs) / (mu_obs + 1e-9)) * 100.0
+
+    r_raw = float(np.corrcoef(raw, obs)[0, 1]) if (std_obs > 0 and std_raw > 0) else 0.0
+    r_qm = float(np.corrcoef(qm, obs)[0, 1]) if (std_obs > 0 and std_qm > 0) else 0.0
+
+    alpha_raw = std_raw / (std_obs + 1e-9)
+    alpha_qm = std_qm / (std_obs + 1e-9)
+
+    beta_raw = mu_raw / (mu_obs + 1e-9)
+    beta_qm = mu_qm / (mu_obs + 1e-9)
+
+    kge_raw = float(1.0 - np.sqrt((r_raw - 1.0)**2 + (alpha_raw - 1.0)**2 + (beta_raw - 1.0)**2))
+    kge_qm = float(1.0 - np.sqrt((r_qm - 1.0)**2 + (alpha_qm - 1.0)**2 + (beta_qm - 1.0)**2))
+
+    red_rmse_pct = ((rmse_raw - rmse_qm) / (rmse_raw + 1e-9)) * 100.0
+    red_mae_pct = ((mae_raw - mae_qm) / (mae_raw + 1e-9)) * 100.0
+
+    return {
+        "rmse_raw": rmse_raw,
+        "rmse_qm": rmse_qm,
+        "red_rmse_pct": red_rmse_pct,
+        "mae_raw": mae_raw,
+        "mae_qm": mae_qm,
+        "red_mae_pct": red_mae_pct,
+        "bias_raw_pct": bias_raw_pct,
+        "bias_qm_pct": bias_qm_pct,
+        "kge_raw": kge_raw,
+        "kge_qm": kge_qm,
+        "r_raw": r_raw,
+        "r_qm": r_qm,
+        "alpha_raw": alpha_raw,
+        "alpha_qm": alpha_qm,
+        "beta_raw": beta_raw,
+        "beta_qm": beta_qm,
+    }
 
 
 

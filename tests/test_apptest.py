@@ -53,5 +53,25 @@ def test_apptest_metodologia_page(app):
     assert len(app.dataframe) > 0
 
 
+def test_apptest_reactividad_periodo_calibracion():
+    """Verifica la recalibración y reactividad en tiempo real al variar el periodo de calibración."""
+    at = AppTest.from_file("app.py", default_timeout=TIMEOUT)
+    at.run(timeout=TIMEOUT)
+    assert len(at.exception) == 0, f"Excepciones al iniciar: {[e.value for e in at.exception]}"
+
+    # Cambiar periodo de calibración a 1970–1995 mediante slider de barra lateral
+    slider = at.sidebar.slider(key="cal_range_slider")
+    slider.set_value((1970, 1995)).run(timeout=TIMEOUT)
+    assert len(at.exception) == 0, f"Excepciones tras cambiar slider: {[e.value for e in at.exception]}"
+    assert at.session_state["metadata"]["cal_inicio"] == 1970
+    assert at.session_state["metadata"]["cal_fin"] == 1995
+    assert at.session_state["cal"]["fecha"].dt.year.min() == 1970
+    assert at.session_state["cal"]["fecha"].dt.year.max() == 1995
+
+    # Verificar que Resumen renderice limpiamente con el nuevo periodo
+    at.switch_page("pages/resumen.py").run(timeout=TIMEOUT)
+    assert len(at.exception) == 0, f"Excepciones en Resumen tras recalibración: {[e.value for e in at.exception]}"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

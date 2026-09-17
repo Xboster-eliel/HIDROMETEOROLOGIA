@@ -150,6 +150,31 @@ def test_consistencia_algebraica_rmse_kge(calibracion_base):
     row_qm = tabla_met.loc[tabla_met["Serie"] == "Modelo Corregido QM"].iloc[0]
     assert np.isclose(kge_calculado, float(row_qm["KGE"]), atol=1e-5)
     assert np.isclose(kge_calculado, 0.077496, atol=1e-4)
+    # Verificar nuevas columnas explícitas
+    assert "r" in tabla_met.columns
+    assert "alpha" in tabla_met.columns
+    assert "beta" in tabla_met.columns
+    assert np.isclose(float(row_qm["r"]), r_qm, atol=1e-5)
+    assert np.isclose(float(row_qm["alpha"]), alpha_qm, atol=1e-5)
+    assert np.isclose(float(row_qm["beta"]), beta_qm, atol=1e-5)
+
+
+def test_metricas_error_embebidas(calibracion_base):
+    """Verifica que la función calcular_metricas_error computa con precisión los errores para los gráficos."""
+    from qm_core import calcular_metricas_error
+    cal, _ = calibracion_base
+    o = cal["obs_mm"].to_numpy(dtype=float)
+    m_raw = cal["modelo_mm"].to_numpy(dtype=float)
+    m_qm = cal["qm_mm"].to_numpy(dtype=float)
+
+    err = calcular_metricas_error(o, m_raw, m_qm)
+    assert np.isclose(err["rmse_qm"], 18.614788, atol=1e-4)
+    assert np.isclose(err["rmse_raw"], 13.996360, atol=1e-4)
+    assert abs(err["bias_qm_pct"]) < 0.01
+    assert err["bias_raw_pct"] < 0.0
+    assert err["mae_qm"] > 0.0
+    assert err["mae_raw"] > 0.0
+    assert np.isclose(err["kge_qm"], 0.077496, atol=1e-4)
 
 
 def test_ecdf_qq_y_pedagogico(calibracion_base):

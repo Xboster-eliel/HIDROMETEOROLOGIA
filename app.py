@@ -132,13 +132,18 @@ with st.sidebar:
         def_start = max(min_yr, 1959)
         def_end = min(max_yr, 2014)
 
+        if "cal_range" not in st.session_state:
+            st.session_state["cal_range"] = (def_start, def_end)
+
         cal_range = st.slider(
-            "Periodo de referencia:",
+            "Periodo de referencia (Calibración):",
             min_value=min_yr,
             max_value=max_yr,
-            value=(def_start, def_end),
-            help="Periodo común para calcular las distribuciones acumuladas."
+            value=st.session_state["cal_range"],
+            key="cal_range_slider",
+            help="Periodo común para calcular las distribuciones acumuladas y calibrar el Quantile Mapping."
         )
+        st.session_state["cal_range"] = cal_range
 
         wet_thresh = st.number_input(
             "Umbral húmedo (mm/d):",
@@ -171,6 +176,8 @@ st.session_state["params_qm"] = params_qm
 st.session_state["modelo_todo"] = modelo_todo
 st.session_state["metricas_df"] = metricas_df
 st.session_state["metadata"] = metadata
+st.session_state["observado_full"] = observado
+st.session_state["modelo_full"] = modelo
 
 # ---------------------------------------------------------
 # Navegación Multipágina con st.navigation y st.Page

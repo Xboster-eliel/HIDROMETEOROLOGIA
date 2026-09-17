@@ -21,7 +21,7 @@ metricas_df = st.session_state["metricas_df"]
 metadata = st.session_state["metadata"]
 
 st.markdown("### ◉ Diagnóstico Estadístico y Curvas de Distribución")
-st.caption(f"Análisis detallado de la transformación cuantil a cuantil para {metadata['modelo_nombre']} frente a {metadata['estacion_nombre']}.")
+st.caption(f"Análisis detallado de la transformación cuantil a cuantil para {metadata['modelo_nombre']} frente a {metadata['estacion_nombre']} · 🎯 <strong>Periodo Calibrado: {metadata['cal_inicio']}–{metadata['cal_fin']}</strong> ({len(cal):,} días).", unsafe_allow_html=True)
 
 tabs = st.tabs([
     "Curvas ECDF",

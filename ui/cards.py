@@ -4,6 +4,7 @@ Implementado con st.html y cadenas HTML sin indentación para evitar que el pars
 interprete las etiquetas HTML como bloques de código fuente (<pre><code>).
 """
 
+from typing import Optional
 import streamlit as st
 import pandas as pd
 from ui.constants import THRESHOLD_EXCELLENT, THRESHOLD_ACCEPTABLE
@@ -45,7 +46,8 @@ def render_scientific_kpis(
     wet_raw: float,
     wet_qm: float,
     extrap_count: int,
-    extrap_pct: float
+    extrap_pct: float,
+    extrap_subtexto: Optional[str] = None
 ):
     """Renderiza la fila de 5 KPIs científicos de desempeño del ajuste QM."""
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -92,6 +94,12 @@ def render_scientific_kpis(
         "#172033",
         f'<div class="kpi-badge-good">✓ Obs {wet_obs:.1f}% (Bruto: {wet_raw:.1f}%)</div>'
     )
+
+    subtexto_html = (
+        f'<div style="font-size: 0.70rem; color: #64748B; margin-top: 3px; font-weight: 500;">{extrap_subtexto}</div>'
+        if extrap_subtexto else ''
+    )
+
     render_box(
         c5,
         "Extrapolación Futura",
@@ -99,7 +107,7 @@ def render_scientific_kpis(
         "#B45309",
         (
             f'<div class="kpi-badge-warn">⚠ {extrap_count} días fuera del soporte histórico mensual</div>'
-            '<div style="font-size: 0.70rem; color: #64748B; margin-top: 3px; font-weight: 500;">32 posteriores a 2014 · 1 anterior a 1959 · 0 durante calibración</div>'
+            f'{subtexto_html}'
         )
     )
 
@@ -152,17 +160,25 @@ def render_extreme_diagnostics_table(metricas_df: pd.DataFrame):
             f'</tr>'
         )
 
-    # Fila especializada de diagnóstico KGE (Knoben et al., 2019)
+    # Fila especializada de diagnóstico KGE (Knoben et al., 2019) con valores dinámicos
     kge_raw = float(row_raw["KGE"])
     kge_qm = float(row_qm["KGE"])
-    badge_kge = '<span style="color: #15803D; font-weight: 600;">✓ α=1.00, β=1.00 (Knoben et al., 2019)</span>'
+    r_raw = float(row_raw["r"]) if "r" in row_raw else 0.14
+    alpha_raw = float(row_raw["alpha"]) if "alpha" in row_raw else float(row_raw["Ratio Variabilidad (σ/σ_obs)"])
+    beta_raw = float(row_raw["beta"]) if "beta" in row_raw else (float(row_raw["Media (mm/d)"]) / float(row_obs["Media (mm/d)"]))
+
+    r_qm = float(row_qm["r"]) if "r" in row_qm else 0.08
+    alpha_qm = float(row_qm["alpha"]) if "alpha" in row_qm else float(row_qm["Ratio Variabilidad (σ/σ_obs)"])
+    beta_qm = float(row_qm["beta"]) if "beta" in row_qm else (float(row_qm["Media (mm/d)"]) / float(row_obs["Media (mm/d)"]))
+
+    badge_kge = f'<span style="color: #15803D; font-weight: 600;">✓ α={alpha_qm:.2f}, β={beta_qm:.2f} (Knoben et al., 2019)</span>'
 
     filas_html.append(
         f'<tr style="border-bottom: 1px solid #E2E8F0; background-color: #F8FAFC;">'
         f'<td style="padding: 9px 12px; font-weight: 600; color: #163A5F;">Eficiencia Kling-Gupta (KGE diario)*</td>'
         f'<td style="padding: 9px 12px; text-align: right; color: #1E40AF; font-weight: 600;">1.00</td>'
-        f'<td style="padding: 9px 12px; text-align: right; color: #B91C1C; font-size: 0.84rem;">{kge_raw:.2f} <span style="color: #64748B;">(r=0.14, α=0.38, β=0.89)</span></td>'
-        f'<td style="padding: 9px 12px; text-align: right; color: #15803D; font-weight: 600; font-size: 0.84rem;">{kge_qm:.2f} <span style="color: #475569;">(r=0.08, α=1.00, β=1.00)</span></td>'
+        f'<td style="padding: 9px 12px; text-align: right; color: #B91C1C; font-size: 0.84rem;">{kge_raw:.2f} <span style="color: #64748B;">(r={r_raw:.2f}, α={alpha_raw:.2f}, β={beta_raw:.2f})</span></td>'
+        f'<td style="padding: 9px 12px; text-align: right; color: #15803D; font-weight: 600; font-size: 0.84rem;">{kge_qm:.2f} <span style="color: #475569;">(r={r_qm:.2f}, α={alpha_qm:.2f}, β={beta_qm:.2f})</span></td>'
         f'<td style="padding: 9px 12px; text-align: center;">{badge_kge}</td>'
         f'</tr>'
     )
@@ -186,7 +202,7 @@ def render_extreme_diagnostics_table(metricas_df: pd.DataFrame):
         '</table>'
         '</div>'
         '<div style="font-size: 0.77rem; color: #64748B; margin-top: 6px; line-height: 1.4;">'
-        '* <strong>Diagnóstico KGE (Knoben et al., 2019)</strong>: Descompone la eficiencia en sesgo medio (&beta; = &mu;<sub>m</sub>/&mu;<sub>o</sub>), relación de desviaciones estándar / variabilidad (&alpha; = &sigma;<sub>m</sub>/&sigma;<sub>o</sub>) y correlación temporal diaria (<em>r</em>). El valor KGE = 0.078 supera el benchmark de media constante KGE &approx; -0.41; &beta; &approx; 1.00 y &alpha; &approx; 1.00 indican coincidencia de media y variabilidad marginal, mientras que <em>r</em> &approx; 0.077 es consistente con una simulación climática libre no diseñada para reproducir la secuencia meteorológica observada día a día.'
+        f'* <strong>Diagnóstico KGE (Knoben et al., 2019)</strong>: Descompone la eficiencia en sesgo medio (&beta; = &mu;<sub>m</sub>/&mu;<sub>o</sub> = {beta_qm:.2f}), relación de desviaciones estándar / variabilidad (&alpha; = &sigma;<sub>m</sub>/&sigma;<sub>o</sub> = {alpha_qm:.2f}) y correlación temporal diaria (<em>r</em> = {r_qm:.3f}). El valor KGE = {kge_qm:.3f} supera el benchmark de media constante KGE &approx; -0.41; &beta; &approx; {beta_qm:.2f} y &alpha; &approx; {alpha_qm:.2f} indican coincidencia de media y variabilidad marginal, mientras que <em>r</em> &approx; {r_qm:.3f} es consistente con una simulación climática libre no diseñada para reproducir la secuencia meteorológica observada día a día.'
         '</div>'
     )
 

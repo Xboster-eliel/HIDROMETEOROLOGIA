@@ -7,11 +7,19 @@ import pandas as pd
 import plotly.graph_objects as go
 from ui.constants import COLOR_OBS, COLOR_RAW, COLOR_QM, COLOR_REF, MESES_CORTOS
 from ui.theme import apply_plotly_theme
-from qm_core import calcular_ecdf, calcular_qq_points
+from qm_core import calcular_ecdf, calcular_qq_points, calcular_metricas_error
 
 
-def plot_comparativa_principal(cal_df: pd.DataFrame, anio_inicio: int = None, anio_fin: int = None) -> go.Figure:
-    """Gráfico principal de precipitación diaria en el periodo de referencia/calibración."""
+def plot_comparativa_principal(
+    cal_df: pd.DataFrame,
+    anio_inicio: int = None,
+    anio_fin: int = None,
+    mostrar_metricas: bool = True
+) -> go.Figure:
+    """
+    Gráfico principal de precipitación diaria en el periodo de referencia/calibración
+    con métricas de error (RMSE, Sesgo, MAE, KGE) embebidas directamente en el lienzo.
+    """
     df = cal_df
     if anio_inicio and anio_fin:
         df = cal_df.loc[cal_df["fecha"].dt.year.between(anio_inicio, anio_fin)]
@@ -33,13 +41,51 @@ def plot_comparativa_principal(cal_df: pd.DataFrame, anio_inicio: int = None, an
         line=dict(color=COLOR_QM, width=1.5), opacity=0.9
     ))
 
+    # Título dinámico con indicación de ventana
+    if anio_inicio and anio_fin:
+        rango_str = f"{anio_inicio}–{anio_fin}"
+    elif len(cal_df) > 0:
+        rango_str = f"{cal_df['fecha'].dt.year.min()}–{cal_df['fecha'].dt.year.max()}"
+    else:
+        rango_str = ""
+
+    title_str = f"Histórico de Precipitación Diaria: Observación vs GCM vs QM ({rango_str})"
+
     fig = apply_plotly_theme(
         fig,
-        title="Histórico de Precipitación Diaria: Comparativa Observación vs GCM vs QM",
+        title=title_str,
         x_title="Fecha",
         y_title="Precipitación diaria (mm/d)",
-        height=380
+        height=420
     )
+
+    # Calcular y embeber métricas de error en la ventana activa
+    if mostrar_metricas and len(df) > 0:
+        err = calcular_metricas_error(
+            df["obs_mm"].to_numpy(),
+            df["modelo_mm"].to_numpy(),
+            df["qm_mm"].to_numpy()
+        )
+        texto_badge = (
+            f"<b>Métricas de Error ({rango_str})</b><br>"
+            f"• <b>RMSE:</b> {err['rmse_qm']:.2f} mm/d <span style='color:#64748B;'>(Bruto: {err['rmse_raw']:.2f} mm/d · ↓{err['red_rmse_pct']:.1f}%)</span><br>"
+            f"• <b>Sesgo Medio:</b> {err['bias_qm_pct']:+.2f}% <span style='color:#64748B;'>(Bruto: {err['bias_raw_pct']:+.2f}%)</span><br>"
+            f"• <b>MAE:</b> {err['mae_qm']:.2f} mm/d <span style='color:#64748B;'>(Bruto: {err['mae_raw']:.2f} mm/d)</span><br>"
+            f"• <b>KGE:</b> {err['kge_qm']:.2f} <span style='color:#64748B;'>(Bruto: {err['kge_raw']:.2f})</span>"
+        )
+        fig.add_annotation(
+            text=texto_badge,
+            xref="paper", yref="paper",
+            x=0.98, y=0.96,
+            showarrow=False,
+            align="left",
+            font=dict(size=11, color="#1E293B"),
+            bgcolor="rgba(255, 255, 255, 0.93)",
+            bordercolor="#CBD5E1",
+            borderwidth=1,
+            borderpad=6
+        )
+
     fig.update_xaxes(rangeslider=dict(visible=False))
     return fig
 
@@ -198,8 +244,13 @@ def plot_climatologia_variable(cal_df: pd.DataFrame, variable_tipo: str = "acumu
     return fig
 
 
-def plot_serie_multidecadal(modelo_todo: pd.DataFrame, cal_fin_year: int) -> go.Figure:
+def plot_serie_multidecadal(
+    modelo_todo: pd.DataFrame,
+    cal_fin_year: int = 2014,
+    cal_inicio_year: int = 1959
+) -> go.Figure:
     """Evolución anual multidecadal (1950–2100) con sombreado de calibración vs proyección."""
+    modelo_todo = modelo_todo.copy()
     modelo_todo["anio"] = modelo_todo["fecha"].dt.year
     anual = modelo_todo.groupby("anio").agg({
         "pr_mm_dia": "sum",
@@ -209,20 +260,23 @@ def plot_serie_multidecadal(modelo_todo: pd.DataFrame, cal_fin_year: int) -> go.
 
     fig = go.Figure()
 
-    # Área sombreada para calibración histórica
+    # Área sombreada para calibración histórica exacta [cal_inicio, cal_fin]
     fig.add_vrect(
-        x0=anual["anio"].min(), x1=cal_fin_year,
-        fillcolor="#E2E8F0", opacity=0.25, layer="below", line_width=0,
-        annotation_text="Periodo Histórico de Calibración", annotation_position="top left",
-        annotation_font=dict(size=10, color="#64748B")
+        x0=cal_inicio_year, x1=cal_fin_year,
+        fillcolor="#E2E8F0", opacity=0.35, layer="below", line_width=1,
+        line_dash="dot", line_color="#94A3B8",
+        annotation_text=f"Periodo de Calibración ({cal_inicio_year}–{cal_fin_year})",
+        annotation_position="top left",
+        annotation_font=dict(size=10, color="#475569")
     )
-    # Área sombreada para aplicación futura
-    fig.add_vrect(
-        x0=cal_fin_year, x1=anual["anio"].max(),
-        fillcolor="#FEF3C7", opacity=0.25, layer="below", line_width=0,
-        annotation_text="Aplicación Fuera de Calibración (Proyección)", annotation_position="top right",
-        annotation_font=dict(size=10, color="#B45309")
-    )
+    # Área sombreada para aplicación futura fuera de calibración
+    if cal_fin_year < anual["anio"].max():
+        fig.add_vrect(
+            x0=cal_fin_year, x1=anual["anio"].max(),
+            fillcolor="#FEF3C7", opacity=0.25, layer="below", line_width=0,
+            annotation_text="Proyección Futura", annotation_position="top right",
+            annotation_font=dict(size=10, color="#B45309")
+        )
 
     fig.add_trace(go.Scatter(
         x=anual["anio"], y=anual["Bruto_Anual"],

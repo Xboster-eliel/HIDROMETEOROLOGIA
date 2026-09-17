@@ -21,7 +21,7 @@ modelo_todo = st.session_state["modelo_todo"]
 metadata = st.session_state["metadata"]
 
 st.markdown("### ▥ Climatología Estacional y Señal Temporal del Modelo")
-st.caption("Evaluación del ciclo anual multivariable y comportamiento multidecadal (1950–2100).")
+st.caption(f"Evaluación del ciclo anual multivariable y comportamiento multidecadal (1950–2100) · 🎯 <strong>Periodo Calibrado: {metadata['cal_inicio']}–{metadata['cal_fin']}</strong>.", unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # 1. Ciclo Anual Multivariable
@@ -62,7 +62,11 @@ st.info(
 )
 
 # Gráfico 1: Contexto Anual Multidecadal
-fig_multi = plot_serie_multidecadal(modelo_todo, cal_fin_year=metadata["cal_fin"])
+fig_multi = plot_serie_multidecadal(
+    modelo_todo,
+    cal_fin_year=metadata["cal_fin"],
+    cal_inicio_year=metadata["cal_inicio"]
+)
 st.plotly_chart(fig_multi, use_container_width=True)
 
 # Gráfico 2: Detalle Diario por Año
@@ -71,7 +75,15 @@ anios_todos = sorted(modelo_todo["fecha"].dt.year.unique())
 anio_sel = st.selectbox("Seleccionar año a inspeccionar:", anios_todos, index=anios_todos.index(2010) if 2010 in anios_todos else 0)
 
 sub_anio = modelo_todo.loc[modelo_todo["fecha"].dt.year == anio_sel]
-obs_sub_anio = cal.loc[cal["fecha"].dt.year == anio_sel] if anio_sel in cal["fecha"].dt.year.values else None
+
+# Buscar observaciones (primero en cal, y si no en observado_full si está disponible)
+obs_sub_anio = None
+if anio_sel in cal["fecha"].dt.year.values:
+    obs_sub_anio = cal.loc[cal["fecha"].dt.year == anio_sel]
+elif "observado_full" in st.session_state:
+    obs_full = st.session_state["observado_full"]
+    if anio_sel in obs_full["fecha"].dt.year.values:
+        obs_sub_anio = obs_full.loc[obs_full["fecha"].dt.year == anio_sel].rename(columns={"pr_mm_dia": "obs_mm"})
 
 fig_dia = go.Figure()
 fig_dia.add_trace(go.Scatter(
