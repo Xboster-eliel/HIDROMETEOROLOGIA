@@ -221,6 +221,7 @@ def metricas_precipitacion(x: Union[pd.Series, np.ndarray], wet_threshold: float
         "N": len(x),
         "Media (mm/d)": float(np.mean(x)),
         "Mediana (mm/d)": float(np.median(x)),
+        "Desv. Estándar (mm/d)": float(np.std(x)),
         "P95 (mm/d)": float(np.quantile(x, 0.95)),
         "P99 (mm/d)": float(np.quantile(x, 0.99)),
         "Máximo (mm/d)": float(np.max(x)),
@@ -235,7 +236,7 @@ def tabla_metricas_comparativas(
     mod_qm: np.ndarray,
     wet_threshold: float = 0.1
 ) -> pd.DataFrame:
-    """Compara métricas de precipitación y sesgos entre Observado, Modelo Bruto y QM."""
+    """Compara métricas de precipitación, sesgos e índices de eficiencia hidrológica (KGE, RMSE)."""
     m_obs = metricas_precipitacion(obs, wet_threshold)
     m_raw = metricas_precipitacion(mod_raw, wet_threshold)
     m_qm = metricas_precipitacion(mod_qm, wet_threshold)
@@ -244,36 +245,58 @@ def tabla_metricas_comparativas(
     bias_media_raw = ((m_raw["Media (mm/d)"] - m_obs["Media (mm/d)"]) / (m_obs["Media (mm/d)"] + 1e-9)) * 100
     bias_media_qm = ((m_qm["Media (mm/d)"] - m_obs["Media (mm/d)"]) / (m_obs["Media (mm/d)"] + 1e-9)) * 100
 
-    rmse_raw = np.sqrt(np.mean((mod_raw - obs)**2))
-    rmse_qm = np.sqrt(np.mean((mod_qm - obs)**2))
-    mae_raw = np.mean(np.abs(mod_raw - obs))
-    mae_qm = np.mean(np.abs(mod_qm - obs))
+    rmse_raw = float(np.sqrt(np.mean((mod_raw - obs)**2)))
+    rmse_qm = float(np.sqrt(np.mean((mod_qm - obs)**2)))
+    mae_raw = float(np.mean(np.abs(mod_raw - obs)))
+    mae_qm = float(np.mean(np.abs(mod_qm - obs)))
+
+    # Ratios de variabilidad (desviación estándar)
+    std_obs = m_obs["Desv. Estándar (mm/d)"]
+    ratio_std_raw = m_raw["Desv. Estándar (mm/d)"] / (std_obs + 1e-9)
+    ratio_std_qm = m_qm["Desv. Estándar (mm/d)"] / (std_obs + 1e-9)
+
+    # Kling-Gupta Efficiency (KGE)
+    r_raw = float(np.corrcoef(mod_raw, obs)[0, 1]) if std_obs > 0 else 0.0
+    r_qm = float(np.corrcoef(mod_qm, obs)[0, 1]) if std_obs > 0 else 0.0
+
+    beta_raw = m_raw["Media (mm/d)"] / (m_obs["Media (mm/d)"] + 1e-9)
+    beta_qm = m_qm["Media (mm/d)"] / (m_obs["Media (mm/d)"] + 1e-9)
+
+    kge_raw = float(1.0 - np.sqrt((r_raw - 1.0)**2 + (ratio_std_raw - 1.0)**2 + (beta_raw - 1.0)**2))
+    kge_qm = float(1.0 - np.sqrt((r_qm - 1.0)**2 + (ratio_std_qm - 1.0)**2 + (beta_qm - 1.0)**2))
 
     # Construcción de la tabla
     df = pd.DataFrame([
         {
             "Serie": "Observado (Estación)",
             **m_obs,
+            "Ratio Variabilidad (σ/σ_obs)": 1.0,
             "Sesgo relativo Media (%)": 0.0,
             "RMSE (mm/d)": 0.0,
-            "MAE (mm/d)": 0.0
+            "MAE (mm/d)": 0.0,
+            "KGE": 1.0
         },
         {
             "Serie": "Modelo Bruto (GCM)",
             **m_raw,
+            "Ratio Variabilidad (σ/σ_obs)": ratio_std_raw,
             "Sesgo relativo Media (%)": bias_media_raw,
             "RMSE (mm/d)": rmse_raw,
-            "MAE (mm/d)": mae_raw
+            "MAE (mm/d)": mae_raw,
+            "KGE": kge_raw
         },
         {
             "Serie": "Modelo Corregido QM",
             **m_qm,
+            "Ratio Variabilidad (σ/σ_obs)": ratio_std_qm,
             "Sesgo relativo Media (%)": bias_media_qm,
             "RMSE (mm/d)": rmse_qm,
-            "MAE (mm/d)": mae_qm
+            "MAE (mm/d)": mae_qm,
+            "KGE": kge_qm
         }
     ])
     return df
+
 
 
 def calcular_ecdf(valores: Union[pd.Series, np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
