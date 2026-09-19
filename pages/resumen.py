@@ -51,13 +51,17 @@ subtexto_extrap = f"{n_post} posteriores a {cal_fin} · {n_pre} anteriores a {ca
 render_scientific_kpis(
     bias_raw=float(row_raw["Sesgo relativo Media (%)"]),
     bias_qm=float(row_qm["Sesgo relativo Media (%)"]),
-    rmse_qm=float(row_qm["RMSE (mm/d)"]),
     wet_obs=float(row_obs["Frecuencia húmeda (%)"]),
     wet_raw=float(row_raw["Frecuencia húmeda (%)"]),
     wet_qm=float(row_qm["Frecuencia húmeda (%)"]),
     extrap_count=n_fuera,
     extrap_pct=pct_fuera,
-    extrap_subtexto=subtexto_extrap
+    extrap_subtexto=subtexto_extrap,
+    media_obs=float(row_obs["Media (mm/d)"]),
+    media_raw=float(row_raw["Media (mm/d)"]),
+    media_qm=float(row_qm["Media (mm/d)"]),
+    cal_inicio=cal_ini,
+    cal_fin=cal_fin,
 )
 
 banner_cal = (
@@ -116,6 +120,30 @@ with col_g2:
     st.caption("Muestra cómo la función empírica eliminó los sesgos relativos estacionales en los 12 meses:")
     fig_sesgo = plot_sesgo_mensual(cal)
     st.plotly_chart(fig_sesgo, use_container_width=True)
+
+    # Texto explicativo, ecuación formal y desglose de sesgo relativo estacional
+    st.markdown("###### 📘 Formulación del Sesgo Estacional Relativo")
+    st.caption("Ecuación aplicada de forma independiente a cada mes m ∈ {Ene, Feb, ..., Dic}:")
+    st.latex(r"\text{Bias}_m (\%) = \left( \frac{\bar{P}_{m, \mathrm{mod}} - \bar{P}_{m, \mathrm{obs}}}{\bar{P}_{m, \mathrm{obs}}} \right) \times 100\%")
+
+    desglose_sesgo_html = (
+        '<div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; margin-top: 6px; font-size: 0.79rem; color: #334155; line-height: 1.45;">'
+        '<div style="font-weight: 600; color: #163A5F; margin-bottom: 4px;">'
+        '🔍 Desglose de variables y qué dice la ecuación:'
+        '</div>'
+        '<div style="color: #475569;">'
+        '• <strong>P&#772;<sub>m, mod</sub>:</strong> Precipitación media diaria del mes <em>m</em> para el modelo (GCM Bruto o Modelo QM).<br>'
+        '• <strong>P&#772;<sub>m, obs</sub>:</strong> Precipitación media diaria observada en la estación meteorológica en el mes <em>m</em>.<br>'
+        '• <strong>Bias<sub>m</sub> &gt; 0%:</strong> <em>Sobreestimación sistemática</em> del volumen de lluvia en ese mes.<br>'
+        '• <strong>Bias<sub>m</sub> &lt; 0%:</strong> <em>Subestimación sistemática</em> (el modelo simula un déficit volumétrico estacional).<br>'
+        '• <strong>Bias<sub>m</sub> &approx; 0%:</strong> <em>Corrección volumétrica completa</em>; la calibración empírica mensual (EQM) elimina las barras de sesgo y alinea cada mes con el régimen hidrológico real de la cuenca.'
+        '</div>'
+        '</div>'
+    )
+    if hasattr(st, "html"):
+        st.html(desglose_sesgo_html)
+    else:
+        st.markdown(desglose_sesgo_html, unsafe_allow_html=True)
 
 st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 

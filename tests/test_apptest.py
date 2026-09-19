@@ -26,6 +26,7 @@ def test_apptest_router_y_resumen(app):
     assert "metadata" in app.session_state
     # Verificar que haya elementos renderizados en la página principal
     assert len(app.markdown) > 0
+    assert len(app.latex) > 0
 
 
 def test_apptest_diagnostico_page(app):
