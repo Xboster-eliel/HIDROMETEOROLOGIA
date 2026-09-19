@@ -192,5 +192,17 @@ def test_ecdf_qq_y_pedagogico(calibracion_base):
     assert "QM corregido Xqm (mm)" in tabla_ej.columns
 
 
+def test_plot_qq_adimensional(calibracion_base):
+    """Verifica que el gráfico de diagnóstico Q-Q no tenga unidades físicas (mm/d) en sus ejes."""
+    from ui.charts import plot_qq_diagnostico
+    cal, _ = calibracion_base
+    fig = plot_qq_diagnostico(cal, n_points=50)
+    assert "mm" not in fig.layout.xaxis.title.text.lower()
+    assert "mm" not in fig.layout.yaxis.title.text.lower()
+    assert fig.layout.xaxis.title.text == "Cuantiles Observados"
+    assert fig.layout.yaxis.title.text == "Cuantiles Simulados / Corregidos"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+

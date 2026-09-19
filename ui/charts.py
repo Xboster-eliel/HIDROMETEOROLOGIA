@@ -170,24 +170,27 @@ def plot_qq_diagnostico(cal_df: pd.DataFrame, n_points: int = 120) -> go.Figure:
     fig.add_trace(go.Scatter(
         x=qq_pts["obs"], y=qq_pts["mod_raw"],
         mode="markers", name="Modelo Bruto vs Obs",
-        marker=dict(color=COLOR_RAW, size=6, opacity=0.7)
+        marker=dict(color=COLOR_RAW, size=6, opacity=0.7),
+        hovertemplate="Cuantil Obs: %{x:.2f}<br>Cuantil Bruto: %{y:.2f}<extra></extra>"
     ))
     fig.add_trace(go.Scatter(
         x=qq_pts["obs"], y=qq_pts["mod_qm"],
         mode="markers", name="Modelo Corregido QM vs Obs",
-        marker=dict(color=COLOR_QM, size=6, opacity=0.85)
+        marker=dict(color=COLOR_QM, size=6, opacity=0.85),
+        hovertemplate="Cuantil Obs: %{x:.2f}<br>Cuantil QM: %{y:.2f}<extra></extra>"
     ))
     fig.add_trace(go.Scatter(
         x=[0, lim_max], y=[0, lim_max],
         mode="lines", name="Línea 1:1 (Ajuste Perfecto)",
-        line=dict(color=COLOR_REF, dash="dash", width=1.5)
+        line=dict(color=COLOR_REF, dash="dash", width=1.5),
+        hoverinfo="skip"
     ))
 
     fig = apply_plotly_theme(
         fig,
         title=f"Diagnóstico Q-Q: Cuantiles Observados vs Simulados{rango_str}",
-        x_title="Cuantiles Observados (mm/d)",
-        y_title="Cuantiles Simulados / Corregidos (mm/d)",
+        x_title="Cuantiles Observados",
+        y_title="Cuantiles Simulados / Corregidos",
         hovermode="closest",
         height=400
     )

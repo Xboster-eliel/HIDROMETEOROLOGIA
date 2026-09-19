@@ -126,6 +126,57 @@ with tabs[1]:
     fig_qq = plot_qq_diagnostico(cal_activa, n_points=n_pts)
     st.plotly_chart(fig_qq, use_container_width=True)
 
+    # ---------------------------------------------------------
+    # Panel Pedagógico: Fundamento Estadístico del Gráfico Q-Q
+    # ---------------------------------------------------------
+    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+    st.markdown("###### 📘 Fundamento Estadístico e Interpretación del Gráfico Q-Q")
+    st.caption("Alineación cuantil-cuantil y ausencia de unidades físicas en los ejes:")
+
+    st.latex(r"Q(p) = F^{-1}(p) = \inf \left\{ x \in \mathbb{R} : F(x) \ge p \right\}, \quad p \in (0, 1)")
+
+    html_exp_qq = (
+        '<div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px 16px; margin-top: 10px; font-size: 0.81rem; color: #334155; line-height: 1.55;">'
+        '<div style="font-weight: 700; color: #163A5F; font-size: 0.88rem; margin-bottom: 8px;">'
+        '🔍 ¿Por qué los ejes no llevan unidades físicas (mm/día) y cómo se interpreta este gráfico?'
+        '</div>'
+
+        '<div style="margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #E2E8F0;">'
+        '• <strong>Naturaleza Adimensional de los Ejes de Cuantiles:</strong><br>'
+        '<span style="color: #475569;">'
+        'Un gráfico Cuantil-Cuantil (Q-Q) contrasta directamente las funciones inversas de distribución acumulada '
+        '(<em>Q<sub>sim</sub>(p)</em> frente a <em>Q<sub>obs</sub>(p)</em>) evaluadas en idénticos percentiles de probabilidad <em>p &isin; (0, 1)</em>. '
+        'En la literatura estadística rigurosa, los ejes representan posiciones relativas de probabilidad o valores estandarizados (Z-scores / cuantiles empíricos), '
+        'omitiendo unidades físicas directas (como mm/día) para reflejar que se está evaluando la equivalencia morfológica de las distribuciones '
+        'y no mediciones dimensionales independientes.'
+        '</span>'
+        '</div>'
+
+        '<div style="margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #E2E8F0;">'
+        '• <strong>Línea Diagonal 1:1 (Identidad Distribucional):</strong><br>'
+        '<span style="color: #475569;">'
+        'La línea discontinua <em>y = x</em> constituye la referencia teórica perfecta: si la distribución simulada fuese idéntica a la observada '
+        'en todos sus órdenes (media, varianza, asimetría y colas extremas), los puntos deben alinearse estrictamente sobre ella.'
+        '</span>'
+        '</div>'
+
+        '<div>'
+        '• <strong>Diagnóstico Comparativo de Desempeño:</strong><br>'
+        '<span style="color: #475569;">'
+        '<strong>GCM Bruto (rojo):</strong> Cae por debajo de la recta 1:1 en los cuantiles moderados y altos, demostrando la subestimación '
+        'volumétrica sistemática del modelo global sin calibrar.<br>'
+        '<strong>Modelo QM (verde):</strong> Se superpone de forma estricta sobre la diagonal 1:1 en toda la longitud del soporte, '
+        'confirmando que la transformación empírica restituyó con éxito tanto la ocurrencia como las magnitudes extremas observadas.'
+        '</span>'
+        '</div>'
+
+        '</div>'
+    )
+    if hasattr(st, "html"):
+        st.html(html_exp_qq)
+    else:
+        st.markdown(html_exp_qq, unsafe_allow_html=True)
+
 # ---------------------------------------------------------
 # Tab 3: Parámetros Mensuales
 # ---------------------------------------------------------
