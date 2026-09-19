@@ -134,7 +134,9 @@ def plot_sesgo_mensual(cal_df: pd.DataFrame) -> go.Figure:
 def plot_ecdf_comparativa(cal_df: pd.DataFrame, mes: int = None, log_scale: bool = False) -> go.Figure:
     """Gráfico de funciones de distribución empírica acumulada (ECDF)."""
     sub = cal_df if mes is None else cal_df.loc[cal_df["mes"] == mes]
-    etiqueta = "Todo el periodo común" if mes is None else f"Mes: {MESES_CORTOS[mes-1]}"
+    anios_sub = sorted(cal_df["fecha"].dt.year.unique())
+    rango_str = f" ({anios_sub[0]}–{anios_sub[-1]})" if len(anios_sub) > 0 else ""
+    etiqueta = f"Periodo evaluado{rango_str}" if mes is None else f"Mes: {MESES_CORTOS[mes-1]}{rango_str}"
 
     x_mod, p_mod = calcular_ecdf(sub["modelo_mm"])
     x_obs, p_obs = calcular_ecdf(sub["obs_mm"])
@@ -161,6 +163,8 @@ def plot_qq_diagnostico(cal_df: pd.DataFrame, n_points: int = 120) -> go.Figure:
     """Gráfico de diagnóstico Cuantil-Cuantil (Q-Q) con línea 1:1."""
     qq_pts = calcular_qq_points(cal_df["obs_mm"].to_numpy(), cal_df["modelo_mm"].to_numpy(), cal_df["qm_mm"].to_numpy(), n_points=n_points)
     lim_max = max(qq_pts["obs"].max(), qq_pts["mod_raw"].max(), qq_pts["mod_qm"].max()) * 1.05
+    anios_sub = sorted(cal_df["fecha"].dt.year.unique())
+    rango_str = f" ({anios_sub[0]}–{anios_sub[-1]})" if len(anios_sub) > 0 else ""
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -181,7 +185,7 @@ def plot_qq_diagnostico(cal_df: pd.DataFrame, n_points: int = 120) -> go.Figure:
 
     fig = apply_plotly_theme(
         fig,
-        title="Diagnóstico Q-Q: Cuantiles Observados vs Simulados",
+        title=f"Diagnóstico Q-Q: Cuantiles Observados vs Simulados{rango_str}",
         x_title="Cuantiles Observados (mm/d)",
         y_title="Cuantiles Simulados / Corregidos (mm/d)",
         hovermode="closest",

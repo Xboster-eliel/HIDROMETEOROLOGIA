@@ -95,5 +95,35 @@ def test_apptest_reactividad_ventana_inspeccion():
     assert len(at.exception) == 0, f"Excepciones tras alternar ámbito: {[e.value for e in at.exception]}"
 
 
+def test_apptest_sincronizacion_diagnostico_qm():
+    """Verifica que la página Diagnóstico QM esté sincronizada en tiempo real con la ventana dinámica."""
+    at = AppTest.from_file("app.py", default_timeout=TIMEOUT)
+    at.run(timeout=TIMEOUT)
+    assert len(at.exception) == 0
+
+    # 1. Seleccionar "Primeros 5 años" en Resumen
+    at.radio(key="res_modo_zoom").set_value("Primeros 5 años").run(timeout=TIMEOUT)
+    assert len(at.exception) == 0
+    assert at.session_state["inspection_mode"] == "Primeros 5 años"
+
+    # 2. Navegar a Diagnóstico QM y comprobar que hereda la ventana
+    at.switch_page("pages/diagnostico.py").run(timeout=TIMEOUT)
+    assert len(at.exception) == 0, f"Excepciones en Diagnóstico QM: {[e.value for e in at.exception]}"
+    radio_diag = at.radio(key="diag_modo_zoom")
+    assert radio_diag.value == "Primeros 5 años"
+    assert len(at.tabs) == 4
+    assert len(at.dataframe) > 0
+
+    # 3. Modificar la ventana en Diagnóstico QM a "Primeros 10 años"
+    radio_diag.set_value("Primeros 10 años").run(timeout=TIMEOUT)
+    assert len(at.exception) == 0
+    assert at.session_state["inspection_mode"] == "Primeros 10 años"
+
+    # 4. Regresar a Resumen y comprobar sincronización bidireccional
+    at.switch_page("pages/resumen.py").run(timeout=TIMEOUT)
+    assert len(at.exception) == 0
+    assert at.radio(key="res_modo_zoom").value == "Primeros 10 años"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

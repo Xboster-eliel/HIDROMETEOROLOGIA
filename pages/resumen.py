@@ -86,10 +86,14 @@ with col_g1:
     st.caption("Serie temporal calibrada con tarjeta técnica de error integrada dentro del lienzo de Plotly:")
 
     anios_cal = sorted(cal["fecha"].dt.year.unique())
+    opciones_zoom = ["Todo el periodo", "Primeros 5 años", "Primeros 10 años", "Rango personalizado"]
+    modo_prev = st.session_state.get("inspection_mode", "Primeros 10 años" if len(anios_cal) >= 10 else "Todo el periodo")
+    idx_zoom_def = opciones_zoom.index(modo_prev) if modo_prev in opciones_zoom else (2 if len(anios_cal) >= 10 else 0)
+
     modo_zoom = st.radio(
         "Ventana de inspección diaria:",
-        options=["Todo el periodo", "Primeros 5 años", "Primeros 10 años", "Rango personalizado"],
-        index=2 if len(anios_cal) >= 10 else 0,
+        options=opciones_zoom,
+        index=idx_zoom_def,
         horizontal=True,
         key="res_modo_zoom"
     )
@@ -103,10 +107,13 @@ with col_g1:
     else:
         col_s1, col_s2 = st.columns(2)
         with col_s1:
-            y_ini = st.selectbox("Año inicial:", anios_cal, index=0, key="res_y_ini_custom")
+            prev_ini = st.session_state.get("inspection_range", (anios_cal[0], anios_cal[-1]))[0]
+            ini_idx = anios_cal.index(prev_ini) if prev_ini in anios_cal else 0
+            y_ini = st.selectbox("Año inicial:", anios_cal, index=ini_idx, key="res_y_ini_custom")
         with col_s2:
-            y_fin_def_idx = len(anios_cal) - 1 if len(anios_cal) < 10 else 9
-            y_fin = st.selectbox("Año final:", anios_cal, index=y_fin_def_idx, key="res_y_fin_custom")
+            prev_fin = st.session_state.get("inspection_range", (anios_cal[0], anios_cal[-1]))[1]
+            fin_idx = anios_cal.index(prev_fin) if prev_fin in anios_cal else (len(anios_cal) - 1 if len(anios_cal) < 10 else 9)
+            y_fin = st.selectbox("Año final:", anios_cal, index=fin_idx, key="res_y_fin_custom")
 
     if y_ini > y_fin:
         st.error("El año inicial no puede ser mayor que el año final.")
@@ -114,6 +121,10 @@ with col_g1:
         fig_main = plot_comparativa_principal(cal)
     else:
         fig_main = plot_comparativa_principal(cal, anio_inicio=y_ini, anio_fin=y_fin, mostrar_metricas=True)
+
+    # Persistir globalmente la ventana de inspección para Diagnóstico QM y demás módulos
+    st.session_state["inspection_range"] = (y_ini, y_fin)
+    st.session_state["inspection_mode"] = modo_zoom
 
     st.plotly_chart(fig_main, use_container_width=True)
 
