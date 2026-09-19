@@ -74,5 +74,26 @@ def test_apptest_reactividad_periodo_calibracion():
     assert len(at.exception) == 0, f"Excepciones en Resumen tras recalibración: {[e.value for e in at.exception]}"
 
 
+def test_apptest_reactividad_ventana_inspeccion():
+    """Verifica que la tabla de semáforo hidrometeorológico se sincronice con la ventana de inspección."""
+    at = AppTest.from_file("app.py", default_timeout=TIMEOUT)
+    at.run(timeout=TIMEOUT)
+    assert len(at.exception) == 0
+
+    # Seleccionar "Primeros 5 años" en la ventana de inspección diaria
+    radio_zoom = at.radio(key="res_modo_zoom")
+    radio_zoom.set_value("Primeros 5 años").run(timeout=TIMEOUT)
+    assert len(at.exception) == 0, f"Excepciones tras cambiar zoom: {[e.value for e in at.exception]}"
+
+    # Verificar que el selector de ámbito de la tabla aparezca y funcione
+    radio_eval = at.radio(key="res_modo_eval_tabla")
+    assert radio_eval is not None
+    # Alternar a "Periodo completo"
+    opciones = radio_eval.options
+    assert len(opciones) == 2
+    radio_eval.set_value(opciones[1]).run(timeout=TIMEOUT)
+    assert len(at.exception) == 0, f"Excepciones tras alternar ámbito: {[e.value for e in at.exception]}"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

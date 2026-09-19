@@ -7,6 +7,7 @@ import streamlit as st
 from ui.theme import inject_custom_css
 from ui.cards import render_scientific_header, render_scientific_kpis, render_extreme_diagnostics_table
 from ui.charts import plot_comparativa_principal, plot_sesgo_mensual
+from qm_core import tabla_metricas_comparativas
 
 inject_custom_css()
 
@@ -109,6 +110,7 @@ with col_g1:
 
     if y_ini > y_fin:
         st.error("El año inicial no puede ser mayor que el año final.")
+        y_ini, y_fin = anios_cal[0], anios_cal[-1]
         fig_main = plot_comparativa_principal(cal)
     else:
         fig_main = plot_comparativa_principal(cal, anio_inicio=y_ini, anio_fin=y_fin, mostrar_metricas=True)
@@ -150,20 +152,72 @@ st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 # ---------------------------------------------------------
 # 4. Diagnóstico General del Ajuste e Índices de Extremos
 # ---------------------------------------------------------
-st.markdown("##### 🎯 Evaluación y Semáforo de Desempeño Hidrometeorológico")
-render_extreme_diagnostics_table(metricas_df)
+es_subperiodo = (y_ini != anios_cal[0]) or (y_fin != anios_cal[-1])
 
-# Diagnóstico de síntesis 100% dinámico
-b_raw = float(row_raw["Sesgo relativo Media (%)"])
-b_qm = float(row_qm["Sesgo relativo Media (%)"])
-f_seca_obs = float(row_obs["Frecuencia seca (%)"])
-f_seca_qm = float(row_qm["Frecuencia seca (%)"])
+col_t1, col_t2 = st.columns([0.58, 0.42])
+with col_t1:
+    st.markdown("##### 🎯 Evaluación y Semáforo de Desempeño Hidrometeorológico")
+with col_t2:
+    if es_subperiodo:
+        modo_eval = st.radio(
+            "Muestra evaluada en la tabla:",
+            options=[f"Ventana activa ({y_ini}–{y_fin})", f"Periodo completo ({cal_ini}–{cal_fin})"],
+            index=0,
+            horizontal=True,
+            key="res_modo_eval_tabla"
+        )
+    else:
+        modo_eval = f"Periodo completo ({cal_ini}–{cal_fin})"
 
-with st.expander("📌 Síntesis diagnóstica de la corrección"):
+if es_subperiodo and modo_eval.startswith("Ventana activa"):
+    cal_eval = cal.loc[cal["fecha"].dt.year.between(y_ini, y_fin)]
+    metricas_eval = tabla_metricas_comparativas(
+        cal_eval["obs_mm"].to_numpy(),
+        cal_eval["modelo_mm"].to_numpy(),
+        cal_eval["qm_mm"].to_numpy(),
+        wet_threshold=float(metadata.get("wet_thresh", 0.1))
+    )
+    periodo_eval_str = f"Ventana activa {y_ini}–{y_fin}"
+    dias_eval_str = f"{len(cal_eval):,} días"
+    banner_tabla = (
+        '<div style="font-size: 0.82rem; color: #15803D; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 6px; padding: 6px 12px; margin: 4px 0 10px 0;">'
+        f'⚡ <strong>Sincronización en tiempo real activa:</strong> Evaluando <strong>{len(cal_eval):,} días</strong> de la ventana visible (<strong>{y_ini}–{y_fin}</strong>). '
+        '<span style="color: #475569;">Los semáforos, sesgos, KGE y RMSE corresponden exactamente al tramo inspeccionado.</span>'
+        '</div>'
+    )
+else:
+    cal_eval = cal
+    metricas_eval = metricas_df
+    periodo_eval_str = f"Periodo completo {cal_ini}–{cal_fin}"
+    dias_eval_str = f"{len(cal):,} días"
+    banner_tabla = (
+        '<div style="font-size: 0.82rem; color: #1E40AF; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 6px; padding: 6px 12px; margin: 4px 0 10px 0;">'
+        f'📊 <strong>Climatología de referencia:</strong> Evaluando <strong>{len(cal):,} días</strong> del periodo de calibración completo (<strong>{cal_ini}–{cal_fin}</strong>).'
+        '</div>'
+    )
+
+if hasattr(st, "html"):
+    st.html(banner_tabla)
+else:
+    st.markdown(banner_tabla, unsafe_allow_html=True)
+
+render_extreme_diagnostics_table(metricas_eval)
+
+# Diagnóstico de síntesis 100% dinámico con la muestra evaluada
+row_raw_ev = metricas_eval.loc[metricas_eval["Serie"] == "Modelo Bruto (GCM)"].iloc[0]
+row_qm_ev = metricas_eval.loc[metricas_eval["Serie"] == "Modelo Corregido QM"].iloc[0]
+row_obs_ev = metricas_eval.loc[metricas_eval["Serie"] == "Observado (Estación)"].iloc[0]
+
+b_raw_ev = float(row_raw_ev["Sesgo relativo Media (%)"])
+b_qm_ev = float(row_qm_ev["Sesgo relativo Media (%)"])
+f_seca_obs_ev = float(row_obs_ev["Frecuencia seca (%)"])
+f_seca_qm_ev = float(row_qm_ev["Frecuencia seca (%)"])
+
+with st.expander(f"📌 Síntesis diagnóstica de la corrección ({periodo_eval_str})"):
     st.markdown(
         f"""
-        - **Media y Volumen Total:** El sesgo medio global en el periodo calibrado ({cal_ini}–{cal_fin}) se redujo de **{b_raw:+.2f}% a {b_qm:+.2f}%**, logrando una correspondencia volumétrica prácticamente exacta con la estación pluviométrica.
-        - **Frecuencia Seco/Húmedo:** Se eliminó el exceso de llovizna (*drizzle effect*) del modelo mediante umbrales dinámicos mensuales, igualando la frecuencia observada de días secos ({f_seca_obs:.1f}% obs vs {f_seca_qm:.1f}% QM).
-        - **Colas y Extremos:** Los percentiles P95 y P99 se corrigieron eficientemente dentro del soporte histórico. Se detectaron **{n_fuera} eventos** fuera del soporte histórico del modelo ({n_post} posteriores a {cal_fin}); en esos casos se aplica saturación empírica en el cuantil 1.0.
+        - **Media y Volumen Total ({periodo_eval_str}):** El sesgo medio relativo en la muestra evaluada se redujo de **{b_raw_ev:+.2f}% a {b_qm_ev:+.2f}%**, alcanzando correspondencia volumétrica frente a la estación pluviométrica.
+        - **Frecuencia Seco/Húmedo:** Frecuencia de días secos observados vs corregidos: **{f_seca_obs_ev:.1f}% obs vs {f_seca_qm_ev:.1f}% QM** (eliminación del exceso de llovizna).
+        - **Colas y Extremos:** Percentiles P95 y P99 calculados sobre los {dias_eval_str} de la muestra evaluada. En la proyección histórica completa (1950–2100) se detectaron **{n_fuera} eventos** fuera del soporte histórico del modelo ({n_post} posteriores a {cal_fin}).
         """
     )
