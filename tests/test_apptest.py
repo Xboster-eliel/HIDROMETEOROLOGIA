@@ -33,8 +33,9 @@ def test_apptest_diagnostico_page(app):
     """Verifica la navegación y renderizado del Módulo 2: Diagnóstico QM."""
     app.switch_page("pages/diagnostico.py").run(timeout=TIMEOUT)
     assert len(app.exception) == 0, f"Excepción detectada en Diagnóstico: {[e.value for e in app.exception]}"
-    # Verificar presencia de tabs y componentes
+    # Verificar presencia de tabs, latex y componentes
     assert len(app.tabs) == 4
+    assert len(app.latex) > 0
 
 
 def test_apptest_clima_page(app):

@@ -156,6 +156,65 @@ with tabs[2]:
         hide_index=True
     )
 
+    # ---------------------------------------------------------
+    # Panel Pedagógico: Explicación e Interpretación de Parámetros Calibrados
+    # ---------------------------------------------------------
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+    st.markdown("###### 📘 Formulación e Interpretación de los Parámetros Calibrados")
+    st.caption("Ecuaciones aplicadas por el algoritmo Empirical Quantile Mapping (EQM) para separar días secos y húmedos:")
+
+    st.latex(r"P(\text{seco})_{\mathrm{obs}, m} = \frac{1}{N_m} \sum_{t=1}^{N_m} \mathbb{I}\left(P_{\mathrm{obs}, m}(t) < 0.10\,\mathrm{mm/d}\right)")
+    st.latex(r"x_{\mathrm{th, mod}, m} = F_{m, \mathrm{mod}}^{-1}\left( P(\text{seco})_{\mathrm{obs}, m} \right)")
+
+    explicacion_param_html = (
+        '<div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px 16px; margin-top: 10px; font-size: 0.81rem; color: #334155; line-height: 1.55;">'
+        '<div style="font-weight: 700; color: #163A5F; font-size: 0.88rem; margin-bottom: 8px;">'
+        '🔍 ¿Cómo se calcula cada parámetro, qué significa y cómo se interpreta?'
+        '</div>'
+
+        '<div style="margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #E2E8F0;">'
+        '• <strong>P(seco) observado (Fracción seca):</strong><br>'
+        '<span style="color: #475569;">'
+        '<strong>¿Cómo se calcula?</strong> Es la proporción empírica de días del mes <em>m</em> en los que la estación pluviométrica registró precipitación inferior a 0.10 mm/d (umbral de lluvia medible o efectiva).<br>'
+        '<strong>¿Qué significa?</strong> Representa la probabilidad climatológica real de ausencia de precipitación en la cuenca para ese mes específico.<br>'
+        '<strong>¿Cómo se interpreta?</strong> Varía estacionalmente (ej. valores altos de 0.60–0.70 en meses de estiaje y bajos de 0.30–0.45 en temporada de lluvias). Es la cota observacional obligatoria que el modelo debe igualar.'
+        '</span>'
+        '</div>'
+
+        '<div style="margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #E2E8F0;">'
+        '• <strong>Umbral modelo (mm/d) y Efecto Llovizna (<em>Drizzle Effect</em>):</strong><br>'
+        '<span style="color: #475569;">'
+        '<strong>¿Cómo se calcula?</strong> Es el valor de precipitación diaria simulada por el GCM que corresponde exactamente al percentil P(seco)<sub>obs</sub> dentro de la distribución del modelo para el mes <em>m</em>.<br>'
+        '<strong>¿Qué significa?</strong> Los modelos climáticos globales (GCM) padecen del defecto numérico conocido como <em>drizzle effect</em>: debido a la parametrización de convección en celdas extensas (~100 km), generan lloviznas persistentes de baja intensidad (0.01 a 0.80 mm/d) casi a diario.<br>'
+        '<strong>¿Cómo se interpreta?</strong> Actúa como un filtro de poda física: cualquier lluvia simulada por el GCM menor o igual a este umbral se trunca a <strong>0.0 mm/d</strong>. Esto extirpa las lloviznas espurias y calibra la alternancia seco/húmedo antes de transformar los cuantiles de días lluviosos.'
+        '</span>'
+        '</div>'
+
+        '<div style="margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #E2E8F0;">'
+        '• <strong>Máx. modelo húmedo vs. Máx. observado húmedo (Soporte Empírico):</strong><br>'
+        '<span style="color: #475569;">'
+        '<strong>¿Cómo se calcula?</strong> Corresponden al cuantil 1.0 (máximo histórico) de la serie de calibración para días con lluvia activa en cada mes.<br>'
+        '<strong>¿Qué significa?</strong> Definen los límites del soporte físico de las funciones empíricas. El GCM bruto frecuentemente atenúa los picos máximos (ej. 50–70 mm/d) por promediado espacial, mientras la estación puntual capta núcleos convectivos severos (ej. 120–160 mm/d).<br>'
+        '<strong>¿Cómo se interpreta?</strong> Refleja la amplificación necesaria para reproducir tormentas extremas reales. En EQM clásico, si una proyección futura supera el máximo del modelo, la transformación satura en el cuantil 1.0 (máximo observado) (Themeßl et al., 2011; Gudmundsson et al., 2012).'
+        '</span>'
+        '</div>'
+
+        '<div>'
+        '• <strong>Días húmedos obs vs. Días húmedos QM (Muestra evaluada):</strong><br>'
+        '<span style="color: #475569;">'
+        '<strong>¿Cómo se calcula?</strong> Conteo de días con lluvia &ge; 0.10 mm/d en la ventana temporal activa.<br>'
+        '<strong>¿Qué significa?</strong> Verifica mes a mes que la frecuencia de eventos de precipitación corregidos coincida con la persistencia real de la estación pluviométrica.<br>'
+        '<strong>¿Cómo se interpreta?</strong> La igualdad de conteos confirma que el modelo QM corrigió con precisión tanto la ocurrencia como la magnitud de la precipitación mensual.'
+        '</span>'
+        '</div>'
+
+        '</div>'
+    )
+    if hasattr(st, "html"):
+        st.html(explicacion_param_html)
+    else:
+        st.markdown(explicacion_param_html, unsafe_allow_html=True)
+
 # ---------------------------------------------------------
 # Tab 4: Tabla Completa de Métricas
 # ---------------------------------------------------------
