@@ -3,10 +3,20 @@ Router principal y orquestador del Dashboard de Hidrometeorología.
 Utiliza st.navigation y st.Page para una arquitectura multipágina limpia, moderna y desacoplada.
 """
 
+import sys
+import importlib
 import streamlit as st
 import numpy as np
 import pandas as pd
 from pathlib import Path
+
+# Recarga defensiva de submódulos locales para garantizar frescura en entornos Streamlit Cloud
+for _mod_name in ["ui.constants", "ui.theme", "ui.charts", "ui.cards", "qm_core"]:
+    if _mod_name in sys.modules:
+        try:
+            importlib.reload(sys.modules[_mod_name])
+        except Exception:
+            pass
 
 from qm_core import (
     cargar_datos_qm,

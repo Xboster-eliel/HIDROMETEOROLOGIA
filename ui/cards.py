@@ -39,22 +39,34 @@ def render_scientific_header(
 
 
 def render_scientific_kpis(
-    bias_raw: float,
-    bias_qm: float,
-    wet_obs: float,
-    wet_raw: float,
-    wet_qm: float,
-    extrap_count: int,
-    extrap_pct: float,
+    bias_raw: float = 0.0,
+    bias_qm: float = 0.0,
+    wet_obs: float = 0.0,
+    wet_raw: float = 0.0,
+    wet_qm: float = 0.0,
+    extrap_count: int = 0,
+    extrap_pct: float = 0.0,
     extrap_subtexto: Optional[str] = None,
     media_obs: Optional[float] = None,
     media_raw: Optional[float] = None,
     media_qm: Optional[float] = None,
     cal_inicio: Optional[int] = None,
     cal_fin: Optional[int] = None,
+    rmse_qm: Optional[float] = None,
+    *args,
+    **kwargs
 ):
     """Renderiza los 4 KPIs científicos de desempeño con sus paneles explicativos integrados."""
     c1, c2, c3, c4 = st.columns(4)
+
+    # Conversión segura para evitar TypeErrors ante valores None o de tipos mixtos
+    b_raw = float(bias_raw) if bias_raw is not None else 0.0
+    b_qm = float(bias_qm) if bias_qm is not None else 0.0
+    w_obs = float(wet_obs) if wet_obs is not None else 0.0
+    w_raw = float(wet_raw) if wet_raw is not None else 0.0
+    w_qm = float(wet_qm) if wet_qm is not None else 0.0
+    e_pct = float(extrap_pct) if extrap_pct is not None else 0.0
+    e_count = int(extrap_count) if extrap_count is not None else 0
 
     def render_box(col, title, val_str, val_color, badge_html):
         html_box = (
@@ -73,23 +85,23 @@ def render_scientific_kpis(
     render_box(
         c1,
         "Sesgo GCM Bruto",
-        f"{bias_raw:+.2f}%",
+        f"{b_raw:+.2f}%",
         "#B91C1C",
         '<div class="kpi-badge-bad">↓ Subestimación sistemática</div>'
     )
     render_box(
         c2,
         "Sesgo Modelo QM",
-        f"{bias_qm:+.2f}%",
+        f"{b_qm:+.2f}%",
         "#15803D",
         '<div class="kpi-badge-good">✓ Sesgo medio corregido</div>'
     )
     render_box(
         c3,
         "Días Húmedos (P ≥ 0.1)",
-        f"{wet_qm:.1f}%",
+        f"{w_qm:.1f}%",
         "#172033",
-        f'<div class="kpi-badge-good">✓ Obs {wet_obs:.1f}% (Bruto: {wet_raw:.1f}%)</div>'
+        f'<div class="kpi-badge-good">✓ Obs {w_obs:.1f}% (Bruto: {w_raw:.1f}%)</div>'
     )
 
     subtexto_html = (
@@ -100,10 +112,10 @@ def render_scientific_kpis(
     render_box(
         c4,
         "Extrapolación Futura",
-        f"{extrap_pct:.3f}%",
+        f"{e_pct:.3f}%",
         "#B45309",
         (
-            f'<div class="kpi-badge-warn">⚠ {extrap_count} días fuera de soporte</div>'
+            f'<div class="kpi-badge-warn">⚠ {e_count} días fuera de soporte</div>'
             f'{subtexto_html}'
         )
     )
@@ -131,8 +143,8 @@ def render_scientific_kpis(
         '</div>'
         '<div style="margin-top: 5px; color: #475569;">'
         f'• <strong>Observado (&mu;<sub>obs</sub>):</strong> {obs_str} (media de la estación pluviométrica).<br>'
-        f'• <strong>GCM Bruto (&mu;<sub>bruto</sub>):</strong> {raw_str} &rarr; Déficit volumétrico de <strong>{bias_raw:+.2f}%</strong>.<br>'
-        f'• <strong>Modelo QM (&mu;<sub>QM</sub>):</strong> {qm_str} &rarr; Corrección exacta a <strong>{bias_qm:+.2f}%</strong> (balance medio restituido).'
+        f'• <strong>GCM Bruto (&mu;<sub>bruto</sub>):</strong> {raw_str} &rarr; Déficit volumétrico de <strong>{b_raw:+.2f}%</strong>.<br>'
+        f'• <strong>Modelo QM (&mu;<sub>QM</sub>):</strong> {qm_str} &rarr; Corrección exacta a <strong>{b_qm:+.2f}%</strong> (balance medio restituido).'
         '</div>'
         '</div>'
     )
@@ -144,8 +156,8 @@ def render_scientific_kpis(
         '</div>'
         '<div style="color: #475569;">'
         'Frecuencia de días con lluvia &ge; 0.10 mm/d.<br>'
-        f'• <strong>Efecto Llovizna (<em>Drizzle</em>):</strong> El modelo bruto llovizna artificialmente ({wet_raw:.1f}% vs {wet_obs:.1f}% real).<br>'
-        f'• <strong>Corrección QM:</strong> Iguala exactamente la ocurrencia observada ({wet_qm:.1f}%), podando lloviznas espurias y preservando la alternancia seco/húmedo.'
+        f'• <strong>Efecto Llovizna (<em>Drizzle</em>):</strong> El modelo bruto llovizna artificialmente ({w_raw:.1f}% vs {w_obs:.1f}% real).<br>'
+        f'• <strong>Corrección QM:</strong> Iguala exactamente la ocurrencia observada ({w_qm:.1f}%), podando lloviznas espurias y preservando la alternancia seco/húmedo.'
         '</div>'
         '</div>'
     )
@@ -156,7 +168,7 @@ def render_scientific_kpis(
         '🔮 Significado e Interpretación'
         '</div>'
         '<div style="color: #475569;">'
-        f'Días en 1950&ndash;2100 donde la lluvia supera el máximo histórico mensual ({extrap_count} días, {extrap_pct:.3f}%).<br>'
+        f'Días en 1950&ndash;2100 donde la lluvia supera el máximo histórico mensual ({e_count} días, {e_pct:.3f}%).<br>'
         '• <strong>Soporte empírico:</strong> En EQM clásico saturan en cuantil 1.0 (máximo observado).<br>'
         '• <strong>Cambio climático:</strong> No genera nuevos récords más allá del histórico, justificando el uso de QDM (Cannon et al., 2015).'
         '</div>'

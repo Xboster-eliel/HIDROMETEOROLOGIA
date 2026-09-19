@@ -63,6 +63,7 @@ render_scientific_kpis(
     media_qm=float(row_qm["Media (mm/d)"]),
     cal_inicio=cal_ini,
     cal_fin=cal_fin,
+    rmse_qm=float(row_qm["RMSE (mm/d)"]),
 )
 
 banner_cal = (

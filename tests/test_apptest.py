@@ -126,5 +126,62 @@ def test_apptest_sincronizacion_diagnostico_qm():
     assert at.radio(key="res_modo_zoom").value == "Primeros 10 años"
 
 
+def test_render_scientific_kpis_compatibilidad():
+    """Verifica que render_scientific_kpis tolere firmas anteriores, nuevas y parámetros inesperados."""
+    from ui.cards import render_scientific_kpis
+    from unittest.mock import patch, MagicMock
+
+    def mock_columns(spec):
+        n = spec if isinstance(spec, int) else len(spec)
+        return [MagicMock() for _ in range(n)]
+
+    # Simular contexto de Streamlit para probar llamadas sin errores de ejecución
+    with patch("streamlit.columns", side_effect=mock_columns):
+        with patch("streamlit.html"), patch("streamlit.markdown"):
+            # 1. Llamada clásica / mínima (evita missing argument si sólo se pasan los originales)
+            render_scientific_kpis(
+                bias_raw=-10.98,
+                bias_qm=0.0,
+                wet_obs=45.2,
+                wet_raw=55.1,
+                wet_qm=45.2,
+                extrap_count=3,
+                extrap_pct=0.005,
+                rmse_qm=12.4
+            )
+
+            # 2. Llamada completa moderna con kwargs nuevos y argumentos extra imprevistos
+            render_scientific_kpis(
+                bias_raw=-10.98,
+                bias_qm=0.0,
+                wet_obs=45.2,
+                wet_raw=55.1,
+                wet_qm=45.2,
+                extrap_count=3,
+                extrap_pct=0.005,
+                extrap_subtexto="3 posteriores a 2010",
+                media_obs=8.62,
+                media_raw=7.67,
+                media_qm=8.62,
+                cal_inicio=1981,
+                cal_fin=2010,
+                rmse_qm=12.4,
+                parametro_desconocido=999,
+                otro_parametro="test",
+            )
+
+            # 3. Llamada con valores None y vacíos
+            render_scientific_kpis(
+                bias_raw=None,
+                bias_qm=None,
+                wet_obs=None,
+                wet_raw=None,
+                wet_qm=None,
+                extrap_count=None,
+                extrap_pct=None,
+            )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
